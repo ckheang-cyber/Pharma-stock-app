@@ -24,7 +24,7 @@ def get_connection():
         port="6543",
         database="postgres",
         user="postgres.slnpojpmczffprhnvhyg",
-        password="vyqnidDysgicquqpy3",
+        password="PharmaStock2026",
         sslmode="require"
     )
 
