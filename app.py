@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
-import psycopg2
-from psycopg2.extensions import AsIs
+import sqlite3
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="PharmaStock Control", layout="wide")
@@ -14,16 +13,10 @@ USER_PIN = "ldl123"
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# --- SAFE DIRECT DATABASE CONNECTIONS ---
+# --- LOCAL DATABASE CONNECTION (NO PASSWORD REQUIRED) ---
 def get_connection():
-    return psycopg2.connect(
-        host="aws-0-ap-southeast-2.pooler.supabase.com",
-        port="6543",
-        database="postgres",
-        user="postgres.slnpojpmczffprhnvhyg",
-        password="vyqnidDysgicquqpy3",
-        sslmode="require"
-    )
+    # This creates a local database file named 'pharmacy.db' automatically
+    return sqlite3.connect("pharmacy.db")
 
 def init_db():
     try:
@@ -31,7 +24,7 @@ def init_db():
         c = conn.cursor()
         c.execute('''
             CREATE TABLE IF NOT EXISTS stock (
-                id SERIAL PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 drug_name TEXT NOT NULL,
                 category TEXT NOT NULL,
                 batch_number TEXT NOT NULL,
@@ -39,12 +32,12 @@ def init_db():
                 unit TEXT NOT NULL,
                 min_level INTEGER NOT NULL,
                 expiry_date TEXT NOT NULL,
-                drug_image BYTEA
+                drug_image BLOB
             )
         ''')
         c.execute('''
             CREATE TABLE IF NOT EXISTS usage_logs (
-                id SERIAL PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 drug_name TEXT NOT NULL,
                 batch_number TEXT NOT NULL,
                 quantity_used INTEGER NOT NULL,
@@ -84,8 +77,8 @@ def insert_drug(name, cat, batch, qty, unit, min_lvl, expiry, img_bytes):
     c = conn.cursor()
     c.execute('''
         INSERT INTO stock (drug_name, category, batch_number, quantity, unit, min_level, expiry_date, drug_image)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    ''', (name, cat, batch, qty, unit, min_lvl, expiry, psycopg2.Binary(img_bytes) if img_bytes else None))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (name, cat, batch, qty, unit, min_lvl, expiry, sqlite3.Binary(img_bytes) if img_bytes else None))
     conn.commit()
     c.close()
     conn.close()
@@ -96,14 +89,14 @@ def update_drug(drug_id, name, cat, batch, qty, unit, min_lvl, expiry, img_bytes
     if img_bytes:
         c.execute('''
             UPDATE stock 
-            SET drug_name = %s, category = %s, batch_number = %s, quantity = %s, unit = %s, min_level = %s, expiry_date = %s, drug_image = %s
-            WHERE id = %s
-        ''', (name, cat, batch, qty, unit, min_lvl, expiry, psycopg2.Binary(img_bytes), drug_id))
+            SET drug_name = ?, category = ?, batch_number = ?, quantity = ?, unit = ?, min_level = ?, expiry_date = ?, drug_image = ?
+            WHERE id = ?
+        ''', (name, cat, batch, qty, unit, min_lvl, expiry, sqlite3.Binary(img_bytes), drug_id))
     else:
         c.execute('''
             UPDATE stock 
-            SET drug_name = %s, category = %s, batch_number = %s, quantity = %s, unit = %s, min_level = %s, expiry_date = %s
-            WHERE id = %s
+            SET drug_name = ?, category = ?, batch_number = ?, quantity = ?, unit = ?, min_level = ?, expiry_date = ?
+            WHERE id = ?
         ''', (name, cat, batch, qty, unit, min_lvl, expiry, drug_id))
     conn.commit()
     c.close()
@@ -112,12 +105,12 @@ def update_drug(drug_id, name, cat, batch, qty, unit, min_lvl, expiry, img_bytes
 def add_stock_quantity(drug_id, qty_to_add):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("SELECT quantity, drug_name, unit FROM stock WHERE id = %s", (drug_id,))
+    c.execute("SELECT quantity, drug_name, unit FROM stock WHERE id = ?", (drug_id,))
     res = c.fetchone()
     if res:
         current_qty, name, unit = res
         new_qty = current_qty + qty_to_add
-        c.execute("UPDATE stock SET quantity = %s WHERE id = %s", (new_qty, drug_id))
+        c.execute("UPDATE stock SET quantity = ? WHERE id = ?", (new_qty, drug_id))
         conn.commit()
         c.close()
         conn.close()
@@ -129,19 +122,19 @@ def add_stock_quantity(drug_id, qty_to_add):
 def dispense_drug(drug_id, qty_to_use, purpose):
     conn = get_connection()
     c = conn.cursor()
-    c.execute("SELECT drug_name, batch_number, quantity, unit FROM stock WHERE id = %s", (drug_id,))
+    c.execute("SELECT drug_name, batch_number, quantity, unit FROM stock WHERE id = ?", (drug_id,))
     drug = c.fetchone()
     
     if drug:
         name, batch, current_qty, unit = drug
         if current_qty >= qty_to_use:
             new_qty = current_qty - qty_to_use
-            c.execute("UPDATE stock SET quantity = %s WHERE id = %s", (new_qty, drug_id))
+            c.execute("UPDATE stock SET quantity = ? WHERE id = ?", (new_qty, drug_id))
             
             today_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             c.execute('''
                 INSERT INTO usage_logs (drug_name, batch_number, quantity_used, unit, purpose, date_used)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                VALUES (?, ?, ?, ?, ?, ?)
             ''', (name, batch, qty_to_use, unit, purpose, today_str))
             
             conn.commit()
@@ -159,8 +152,8 @@ def dispense_drug(drug_id, qty_to_use, purpose):
 def clear_all_data():
     conn = get_connection()
     c = conn.cursor()
-    c.execute("TRUNCATE TABLE stock RESTART IDENTITY")
-    c.execute("TRUNCATE TABLE usage_logs RESTART IDENTITY")
+    c.execute("DELETE FROM stock")
+    c.execute("DELETE FROM usage_logs")
     conn.commit()
     c.close()
     conn.close()
@@ -342,7 +335,7 @@ else:
                     
                     eqty_col, eunit_col = st.columns([2, 1])
                     with eqty_col:
-                        edit_qty = min_lvl = st.number_input("Adjust Quantity Available", min_value=0, step=1, value=int(active_row["quantity"]))
+                        edit_qty = st.number_input("Adjust Quantity Available", min_value=0, step=1, value=int(active_row["quantity"]))
                     with eunit_col:
                         edit_unit = st.text_input("Unit Type", value=active_row["unit"])
                         
@@ -369,4 +362,4 @@ else:
                     clear_all_data()
                     st.rerun()
     else:
-        st.warning("⚠️ Connection to Supabase is pending. The application components will build once authentication clears.")
+        st.warning("⚠️ Database setup error.")
