@@ -8,6 +8,7 @@ st.set_page_config(page_title="PharmaStock Control", layout="wide")
 
 ## --- CLOUD DATABASE CONFIGURATION ---
 # ⚠️ Make sure to use a colon (:) right after your project ID string, NOT a dot (.)!
+# --- CLOUD DATABASE CONFIGURATION ---
 DB_URI = "postgresql://postgres.slnpojpmczffprhnvhyg:vyqnidDysgicquqpy3@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres"
 
 CATEGORIES = ["Antibiotic", "Vitamin", "Supplements", "Vaccine", "Other"]
