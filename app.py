@@ -6,10 +6,9 @@ from datetime import datetime, timedelta
 
 st.set_page_config(page_title="PharmaStock Control", layout="wide")
 
-## --- CLOUD DATABASE CONFIGURATION ---
-# ⚠️ Make sure to use a colon (:) right after your project ID string, NOT a dot (.)!
-# --- CLOUD DATABASE CONFIGURATION ---
-DB_URI = "postgresql://postgres.slnpojpmczffprhnvhyg:vyqnidDysgicquqpy3@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres"
+
+
+
 
 CATEGORIES = ["Antibiotic", "Vitamin", "Supplements", "Vaccine", "Other"]
 USER_ID = "ldl"
@@ -18,9 +17,16 @@ USER_PIN = "ldl123"
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# --- POSTGRES DATABASE FUNCTIONS ---
+# --- POSTGRES DATABASE CONNECTIONS ---
 def get_connection():
-    return psycopg2.connect(DB_URI)
+    return psycopg2.connect(
+        host="aws-0-ap-southeast-2.pooler.supabase.com",
+        port="6543",
+        database="postgres",
+        user="postgres.slnpojpmczffprhnvhyg",
+        password="vyqnidDysgicquqpy3",
+        sslmode="require"
+    )
 
 def init_db():
     try:
