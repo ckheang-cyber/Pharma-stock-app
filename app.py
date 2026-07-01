@@ -6,10 +6,7 @@ from datetime import datetime, timedelta
 
 st.set_page_config(page_title="PharmaStock Control", layout="wide")
 
-
-
-
-
+# --- FIXED LOG-IN PROFILES ---
 CATEGORIES = ["Antibiotic", "Vitamin", "Supplements", "Vaccine", "Other"]
 USER_ID = "ldl"
 USER_PIN = "ldl123"
@@ -17,14 +14,15 @@ USER_PIN = "ldl123"
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# --- POSTGRES DATABASE CONNECTIONS ---
+# --- SAFE DIRECT DATABASE CONNECTIONS ---
 def get_connection():
     return psycopg2.connect(
-        host="3.106.102.114",  # Direct Oceania IP routing to skip hostname/pooler processing
-        port="5432",           # Standard direct Postgres port
+        host="aws-0-ap-southeast-2.pooler.supabase.com",
+        port="6543",
         database="postgres",
-        user="postgres",       # Back to the regular user layout
-        password="vyqnidDysgicquqpy3"
+        user="postgres.slnpojpmczffprhnvhyg",
+        password="vyqnidDysgicquqpy3",
+        sslmode="require"
     )
 
 def init_db():
@@ -167,7 +165,7 @@ def clear_all_data():
     c.close()
     conn.close()
 
-# Start database architecture safely
+# Start architecture safe link build
 db_is_ready = init_db()
 
 # --- PORTAL SCREEN CONTROLLER ---
@@ -235,7 +233,7 @@ else:
             "⚙️ Danger Zone"
         ])
 
-        # TAB 1: Display
+        # TAB 1: Display Inventory
         with tab1:
             st.subheader("Inventory Directory")
             if not df.empty:
@@ -281,7 +279,7 @@ else:
             else:
                 st.warning("No stock items found.")
 
-        # TAB 3: QUICK RESTOCK TOOL
+        # TAB 3: Quick Restock
         with tab3:
             st.subheader("🔄 Quick Restock Existing Product")
             if not df.empty:
@@ -299,7 +297,7 @@ else:
                     else:
                         st.error(message)
             else:
-                st.warning("No products found in the database to restock. Please add a product first.")
+                st.warning("No products found in the database to restock.")
 
         # TAB 4: Add Stock
         with tab4:
@@ -317,12 +315,9 @@ else:
                     
                 min_lvl = st.number_input("Minimum Safe Stock Level", min_value=1, step=1)
                 expiry = st.date_input("Expiration Date")
-                
                 uploaded_file = st.file_uploader("📸 Take Picture / Upload Medication Image", type=["jpg", "jpeg", "png"])
                 
-                submit = st.form_submit_button("Save to Persistent Database")
-                
-                if submit:
+                if st.form_submit_button("Save to Persistent Database"):
                     if name and batch and unit:
                         img_bytes = uploaded_file.read() if uploaded_file is not None else None
                         expiry_str = expiry.strftime('%Y-%m-%d')
@@ -347,14 +342,13 @@ else:
                     
                     eqty_col, eunit_col = st.columns([2, 1])
                     with eqty_col:
-                        edit_qty = st.number_input("Adjust Quantity Available", min_value=0, step=1, value=int(active_row["quantity"]))
+                        edit_qty = min_lvl = st.number_input("Adjust Quantity Available", min_value=0, step=1, value=int(active_row["quantity"]))
                     with eunit_col:
                         edit_unit = st.text_input("Unit Type", value=active_row["unit"])
                         
                     edit_min_lvl = st.number_input("Adjust Minimum Safe Stock Level", min_value=1, step=1, value=int(active_row["min_level"]))
                     current_expiry_date = active_row["expiry_date"].date() if isinstance(active_row["expiry_date"], datetime) else datetime.strptime(str(active_row["expiry_date"])[:10], '%Y-%m-%d').date()
                     edit_expiry = st.date_input("Expiration Date", value=current_expiry_date)
-                    
                     edit_uploaded_file = st.file_uploader("📸 Replace Photo (Leave empty to keep current picture)", type=["jpg", "jpeg", "png"])
                     
                     if st.form_submit_button("Apply and Save Changes"):
@@ -375,4 +369,4 @@ else:
                     clear_all_data()
                     st.rerun()
     else:
-        st.warning("⚠️ Connection to Supabase is pending. The application layout components will build once Supabase clears their system network incident.")
+        st.warning("⚠️ Connection to Supabase is pending. The application components will build once authentication clears.")
