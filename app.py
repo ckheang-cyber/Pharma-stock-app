@@ -7,12 +7,12 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="PharmaStock Control", layout="wide")
 
 # --- CLOUD DATABASE CONFIGURATION ---
-# Paste your Supabase URI string here. Make sure to put your real password inside it!
-DB_URI = "postgresql://postgres:[dYmgyn-koknu9-vocjam]@db.hnnnoelyhuqeoxgingoq.supabase.co:5432/postgres"
+# ⚠️ REPLACE WITH YOUR REAL PASSWORD INSIDE THE URI BELOW!
+DB_URI = "postgresql://postgres.hnnnoelyhuqeoxgingoq:[dYmgyn-koknu9-vocjam]@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres"
 
 CATEGORIES = ["Antibiotic", "Vitamin", "Supplements", "Vaccine", "Other"]
-USER_ID = "ldl"
-USER_PIN = "ldl123"
+USER_ID = "admin"
+USER_PIN = "pharmacy123"
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -150,7 +150,7 @@ def clear_all_data():
     c.close()
     conn.close()
 
-# Initialize Database Connection
+# Start database architecture
 try:
     init_db()
 except Exception as e:
@@ -220,7 +220,7 @@ else:
         "⚙️ Danger Zone"
     ])
 
-    # TAB 1: Display with Images
+    # TAB 1: Display
     with tab1:
         st.subheader("Inventory Directory")
         if not df.empty:
