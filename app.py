@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="PharmaStock Control", layout="wide")
 
 # --- CLOUD DATABASE CONFIGURATION ---
-# ⚠️ REPLACE 'YOUR_PASSWORD_HERE' WITH YOUR ACTUAL SUPABASE DATABASE PASSWORD!
-DB_URI = "postgresql://postgres.hnnnoelyhuqeoxgingoq:pyRPnyOz5quyD7Jv@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres"
+# ⚠️ Paste your brand new URI string right here!
+DB_URI = "postgresql://postgres.slnpojpmczffprhnvhyg.supabase.co:vyqnidDysgicquqpy3@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres"
 
 CATEGORIES = ["Antibiotic", "Vitamin", "Supplements", "Vaccine", "Other"]
 USER_ID = "admin"
