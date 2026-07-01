@@ -7,15 +7,12 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="PharmaStock Control", layout="wide")
 
 # --- CLOUD DATABASE CONFIGURATION ---
-# ⚠️ Replace 'YOUR_PASSWORD_HERE' with your actual database password
-DB_HOST = "3.106.102.114"  # Direct IP bypasses the DNS translation error
-DB_NAME = "postgres"
-DB_USER = "postgres"
-DB_PORT = "5432"
-DB_PASSWORD = "pyRPnyOz5quyD7Jv"
+# ⚠️ REPLACE 'YOUR_PASSWORD_HERE' WITH YOUR ACTUAL SUPABASE DATABASE PASSWORD!
+DB_URI = "postgresql://postgres.hnnnoelyhuqeoxgingoq:pyRPnyOz5quyD7Jv@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres"
+
 CATEGORIES = ["Antibiotic", "Vitamin", "Supplements", "Vaccine", "Other"]
-USER_ID = "ldl"
-USER_PIN = "ldl123"
+USER_ID = "admin"
+USER_PIN = "pharmacy123"
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -57,7 +54,7 @@ def init_db():
         conn.close()
         return True
     except Exception as e:
-        st.error(f"⚠️ Database Connection Failed! Please check your password in app.py. Error details: {e}")
+        st.error(f"⚠️ Database Connection Failed! Error details: {e}")
         return False
 
 def load_data():
@@ -372,4 +369,4 @@ else:
                     clear_all_data()
                     st.rerun()
     else:
-        st.warning("⚠️ Application is waiting for a functional database URI to load components.")
+        st.warning("⚠️ Connection to Supabase is pending. The application layout components will build once Supabase clears their system network incident.")
