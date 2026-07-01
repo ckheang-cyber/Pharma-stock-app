@@ -7,19 +7,29 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="PharmaStock Control", layout="wide")
 
 # --- CLOUD DATABASE CONFIGURATION ---
-# ⚠️ REPLACE 'YOUR_PASSWORD_HERE' WITH THE NEW PASSWORD YOU SET IN SUPABASE!
-DB_URI = "postgresql://postgres.hnnnoelyhuqeoxgingoq:[pyRPnyOz5quyD7Jv]@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres"
+# ⚠️ Replace 'YOUR_PASSWORD_HERE' with your actual database password
+DB_HOST = "db.hnnnoelyhuqeoxgingoq.supabase.co"
+DB_NAME = "postgres"
+DB_USER = "postgres"
+DB_PORT = "5432"
+DB_PASSWORD = "pyRPnyOz5quyD7Jv"
 
 CATEGORIES = ["Antibiotic", "Vitamin", "Supplements", "Vaccine", "Other"]
-USER_ID = "ldl"
-USER_PIN = "ldl123"
+USER_ID = "admin"
+USER_PIN = "pharmacy123"
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 # --- POSTGRES DATABASE FUNCTIONS ---
 def get_connection():
-    return psycopg2.connect(DB_URI)
+    return psycopg2.connect(
+        host=DB_HOST,
+        database=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        port=DB_PORT
+    )
 
 def init_db():
     try:
