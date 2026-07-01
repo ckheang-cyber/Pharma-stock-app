@@ -8,7 +8,7 @@ st.set_page_config(page_title="PharmaStock Control", layout="wide")
 
 # --- CLOUD DATABASE CONFIGURATION ---
 # ⚠️ REPLACE WITH YOUR REAL PASSWORD INSIDE THE URI BELOW!
-DB_URI = "postgresql://postgres.hnnnoelyhuqeoxgingoq:[dYmgyn-koknu9-vocjam]@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres"
+DB_URI = "postgresql://postgres.hnnnoelyhuqeoxgingoq:[qixvyh-zibzAj-5gahco]@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres"
 
 CATEGORIES = ["Antibiotic", "Vitamin", "Supplements", "Vaccine", "Other"]
 USER_ID = "admin"
