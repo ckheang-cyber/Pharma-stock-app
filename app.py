@@ -20,12 +20,11 @@ if "authenticated" not in st.session_state:
 # --- POSTGRES DATABASE CONNECTIONS ---
 def get_connection():
     return psycopg2.connect(
-        host="aws-0-ap-southeast-2.pooler.supabase.com",
-        port="6543",
+        host="3.106.102.114",  # Direct Oceania IP routing to skip hostname/pooler processing
+        port="5432",           # Standard direct Postgres port
         database="postgres",
-        user="postgres.slnpojpmczffprhnvhyg",
-        password="PharmaStock2026",
-        sslmode="require"
+        user="postgres",       # Back to the regular user layout
+        password="vyqnidDysgicquqpy3"
     )
 
 def init_db():
