@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="PharmaStock Control", layout="wide")
 
 # --- CLOUD DATABASE CONFIGURATION ---
-# ⚠️ REPLACE WITH YOUR REAL PASSWORD INSIDE THE URI BELOW!
-DDB_URI = "postgresql://postgres.hnnnoelyhuqeoxgingoq:[qixvyh-zibzAj-5gahco]@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres"
+# ⚠️ REPLACE 'YOUR_PASSWORD_HERE' WITH THE NEW PASSWORD YOU SET IN SUPABASE!
+DB_URI = "postgresql://postgres.hnnnoelyhuqeoxgingoq:qixvyh-zibzAj-5gahco@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres"
 
 CATEGORIES = ["Antibiotic", "Vitamin", "Supplements", "Vaccine", "Other"]
 USER_ID = "ldl"
@@ -22,47 +22,58 @@ def get_connection():
     return psycopg2.connect(DB_URI)
 
 def init_db():
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS stock (
-            id SERIAL PRIMARY KEY,
-            drug_name TEXT NOT NULL,
-            category TEXT NOT NULL,
-            batch_number TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
-            unit TEXT NOT NULL,
-            min_level INTEGER NOT NULL,
-            expiry_date TEXT NOT NULL,
-            drug_image BYTEA
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS usage_logs (
-            id SERIAL PRIMARY KEY,
-            drug_name TEXT NOT NULL,
-            batch_number TEXT NOT NULL,
-            quantity_used INTEGER NOT NULL,
-            unit TEXT NOT NULL,
-            purpose TEXT,
-            date_used TEXT NOT NULL
-        )
-    ''')
-    conn.commit()
-    c.close()
-    conn.close()
+    try:
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS stock (
+                id SERIAL PRIMARY KEY,
+                drug_name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                batch_number TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                unit TEXT NOT NULL,
+                min_level INTEGER NOT NULL,
+                expiry_date TEXT NOT NULL,
+                drug_image BYTEA
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS usage_logs (
+                id SERIAL PRIMARY KEY,
+                drug_name TEXT NOT NULL,
+                batch_number TEXT NOT NULL,
+                quantity_used INTEGER NOT NULL,
+                unit TEXT NOT NULL,
+                purpose TEXT,
+                date_used TEXT NOT NULL
+            )
+        ''')
+        conn.commit()
+        c.close()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"⚠️ Database Connection Failed! Please check your password in app.py. Error details: {e}")
+        return False
 
 def load_data():
-    conn = get_connection()
-    df = pd.read_sql_query("SELECT * FROM stock ORDER BY id ASC", conn)
-    conn.close()
-    return df
+    try:
+        conn = get_connection()
+        df = pd.read_sql_query("SELECT * FROM stock ORDER BY id ASC", conn)
+        conn.close()
+        return df
+    except:
+        return pd.DataFrame()
 
 def load_logs():
-    conn = get_connection()
-    df = pd.read_sql_query("SELECT * FROM usage_logs ORDER BY date_used DESC", conn)
-    conn.close()
-    return df
+    try:
+        conn = get_connection()
+        df = pd.read_sql_query("SELECT * FROM usage_logs ORDER BY date_used DESC", conn)
+        conn.close()
+        return df
+    except:
+        return pd.DataFrame()
 
 def insert_drug(name, cat, batch, qty, unit, min_lvl, expiry, img_bytes):
     conn = get_connection()
@@ -150,11 +161,8 @@ def clear_all_data():
     c.close()
     conn.close()
 
-# Start database architecture
-try:
-    init_db()
-except Exception as e:
-    st.error(f"Database Connection Error: {e}")
+# Start database architecture safely
+db_is_ready = init_db()
 
 # --- PORTAL SCREEN CONTROLLER ---
 if not st.session_state.authenticated:
@@ -178,184 +186,187 @@ else:
         st.session_state.authenticated = False
         st.rerun()
         
-    df = load_data()
-    df_logs = load_logs()
+    if db_is_ready:
+        df = load_data()
+        df_logs = load_logs()
 
-    if not df.empty:
-        df["expiry_date"] = pd.to_datetime(df["expiry_date"])
-
-    # --- ALERTS ---
-    st.subheader("⚠️ Safety Alerts")
-    col1, col2 = st.columns(2)
-    with col1:
         if not df.empty:
-            low_stock = df[df["quantity"] <= df["min_level"]]
-            if not low_stock.empty:
-                for _, row in low_stock.iterrows():
-                    st.error(f"🚨 **Low Stock:** {row['drug_name']} ({row['quantity']} {row['unit']} left)")
+            df["expiry_date"] = pd.to_datetime(df["expiry_date"])
+
+        # --- ALERTS ---
+        st.subheader("⚠️ Safety Alerts")
+        col1, col2 = st.columns(2)
+        with col1:
+            if not df.empty:
+                low_stock = df[df["quantity"] <= df["min_level"]]
+                if not low_stock.empty:
+                    for _, row in low_stock.iterrows():
+                        st.error(f"🚨 **Low Stock:** {row['drug_name']} ({row['quantity']} {row['unit']} left)")
+                else:
+                    st.success("✅ Stock levels sufficient.")
             else:
-                st.success("✅ Stock levels sufficient.")
-        else:
-            st.info("No items in inventory.")
-    with col2:
-        if not df.empty:
-            near_expiry = df[df["expiry_date"] <= (datetime.now() + timedelta(days=60))]
-            if not near_expiry.empty:
-                for _, row in near_expiry.iterrows():
-                    st.warning(f"⏳ **Expiring Soon:** {row['drug_name']} expires on {row['expiry_date'].strftime('%Y-%m-%d')}")
+                st.info("No items in inventory.")
+        with col2:
+            if not df.empty:
+                near_expiry = df[df["expiry_date"] <= (datetime.now() + timedelta(days=60))]
+                if not near_expiry.empty:
+                    for _, row in near_expiry.iterrows():
+                        st.warning(f"⏳ **Expiring Soon:** {row['drug_name']} expires on {row['expiry_date'].strftime('%Y-%m-%d')}")
+                else:
+                    st.success("✅ No records expiring soon.")
             else:
-                st.success("✅ No records expiring soon.")
-        else:
-            st.info("No items in inventory.")
+                st.info("No items in inventory.")
 
-    st.markdown("---")
+        st.markdown("---")
 
-    # --- APPLICATION TABS ---
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📋 Current Stock List", 
-        "📉 Dispense / Use Drug", 
-        "🔄 Quick Restock",
-        "➕ Add New Product", 
-        "✏️ Edit Existing Stock",
-        "⚙️ Danger Zone"
-    ])
+        # --- APPLICATION TABS ---
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            "📋 Current Stock List", 
+            "📉 Dispense / Use Drug", 
+            "🔄 Quick Restock",
+            "➕ Add New Product", 
+            "✏️ Edit Existing Stock",
+            "⚙️ Danger Zone"
+        ])
 
-    # TAB 1: Display
-    with tab1:
-        st.subheader("Inventory Directory")
-        if not df.empty:
-            selected_cat = st.selectbox("Filter by Category:", ["All"] + CATEGORIES)
-            filtered_df = df.copy()
-            if selected_cat != "All":
-                filtered_df = filtered_df[filtered_df["category"] == selected_cat]
-            
-            for _, row in filtered_df.iterrows():
-                with st.container(border=True):
-                    img_col, info_col = st.columns([1, 4])
-                    with img_col:
-                        if row["drug_image"]:
-                            st.image(bytes(row["drug_image"]), width=120)
-                        else:
-                            st.image("https://placehold.co/120x120?text=No+Photo", width=120)
-                    with info_col:
-                        st.markdown(f"### {row['drug_name']} `ID: {row['id']}`")
-                        st.write(f"**Category:** {row['category']} | **Batch:** {row['batch_number']}")
-                        st.write(f"📈 **Quantity:** {row['quantity']} {row['unit']} (Minimum Alert Level: {row['min_level']} {row['unit']})")
-                        st.write(f"📅 **Expiry:** {row['expiry_date'].strftime('%Y-%m-%d')}")
-        else:
-            st.write("The inventory is empty.")
-
-    # TAB 2: Dispense Form
-    with tab2:
-        st.subheader("Record Used / Dispensed Medication")
-        if not df.empty:
-            drug_options = {row['id']: f"[{row['category']}] {row['drug_name']} (Batch: {row['batch_number']} | Avail: {row['quantity']} {row['unit']})" for _, row in df.iterrows()}
-            selected_drug_id = st.selectbox("Select Drug to Dispense", options=list(drug_options.keys()), format_func=lambda x: drug_options[x])
-            
-            active_dispense = df[df["id"] == selected_drug_id].iloc[0]
-            qty_used = st.number_input(f"Quantity Used ({active_dispense['unit']})", min_value=1, step=1)
-            purpose = st.text_input("Purpose / Patient Name / Notes")
-            
-            if st.button("Confirm Dispense / Usage"):
-                success, message = dispense_drug(selected_drug_id, qty_used, purpose)
-                if success:
-                    st.success(message)
-                    st.rerun()
-                else:
-                    st.error(message)
-        else:
-            st.warning("No stock items found.")
-
-    # TAB 3: QUICK RESTOCK TOOL
-    with tab3:
-        st.subheader("🔄 Quick Restock Existing Product")
-        if not df.empty:
-            restock_options = {row['id']: f"{row['drug_name']} (Current: {row['quantity']} {row['unit']} | Batch: {row['batch_number']})" for _, row in df.iterrows()}
-            selected_restock_id = st.selectbox("Select Product to Restock", options=list(restock_options.keys()), format_func=lambda x: restock_options[x])
-            
-            active_restock = df[df["id"] == selected_restock_id].iloc[0]
-            qty_to_add = st.number_input(f"How many {active_restock['unit']} are you adding?", min_value=1, step=1, value=1)
-            
-            if st.button("Apply Restock Balance"):
-                success, message = add_stock_quantity(selected_restock_id, qty_to_add)
-                if success:
-                    st.success(message)
-                    st.rerun()
-                else:
-                    st.error(message)
-        else:
-            st.warning("No products found in the database to restock. Please add a product first.")
-
-    # TAB 4: Add Stock with Picture upload/snapping
-    with tab4:
-        st.subheader("Log New Batch or Medication")
-        with st.form("add_form", clear_on_submit=True):
-            name = st.text_input("Drug Name (e.g., Amoxicillin 500mg)")
-            category = st.selectbox("Select Category", CATEGORIES)
-            batch = st.text_input("Batch / Lot Number")
-            
-            qty_col, unit_col = st.columns([2, 1])
-            with qty_col:
-                qty = st.number_input("Initial Quantity", min_value=0, step=1)
-            with unit_col:
-                unit = st.text_input("Unit Type", value="Pills")
+        # TAB 1: Display
+        with tab1:
+            st.subheader("Inventory Directory")
+            if not df.empty:
+                selected_cat = st.selectbox("Filter by Category:", ["All"] + CATEGORIES)
+                filtered_df = df.copy()
+                if selected_cat != "All":
+                    filtered_df = filtered_df[filtered_df["category"] == selected_cat]
                 
-            min_lvl = st.number_input("Minimum Safe Stock Level", min_value=1, step=1)
-            expiry = st.date_input("Expiration Date")
-            
-            uploaded_file = st.file_uploader("📸 Take Picture / Upload Medication Image", type=["jpg", "jpeg", "png"])
-            
-            submit = st.form_submit_button("Save to Persistent Database")
-            
-            if submit:
-                if name and batch and unit:
-                    img_bytes = uploaded_file.read() if uploaded_file is not None else None
-                    expiry_str = expiry.strftime('%Y-%m-%d')
-                    insert_drug(name, category, batch, qty, unit, min_lvl, expiry_str, img_bytes)
-                    st.success(f"Successfully recorded {name} into permanent storage!")
-                    st.rerun()
-                else:
-                    st.error("Please fill out Name, Batch, and Unit fields.")
+                for _, row in filtered_df.iterrows():
+                    with st.container(border=True):
+                        img_col, info_col = st.columns([1, 4])
+                        with img_col:
+                            if row["drug_image"]:
+                                st.image(bytes(row["drug_image"]), width=120)
+                            else:
+                                st.image("https://placehold.co/120x120?text=No+Photo", width=120)
+                        with info_col:
+                            st.markdown(f"### {row['drug_name']} `ID: {row['id']}`")
+                            st.write(f"**Category:** {row['category']} | **Batch:** {row['batch_number']}")
+                            st.write(f"📈 **Quantity:** {row['quantity']} {row['unit']} (Minimum Alert Level: {row['min_level']} {row['unit']})")
+                            st.write(f"📅 **Expiry:** {row['expiry_date'].strftime('%Y-%m-%d')}")
+            else:
+                st.write("The inventory is empty.")
 
-    # TAB 5: Edit Form
-    with tab5:
-        st.subheader("Modify Existing Medication Record")
-        if not df.empty:
-            edit_options = {row['id']: f"{row['drug_name']} (Batch: {row['batch_number']})" for _, row in df.iterrows()}
-            selected_edit_id = st.selectbox("Select Drug Record to Edit", options=list(edit_options.keys()), format_func=lambda x: edit_options[x])
-            active_row = df[df["id"] == selected_edit_id].iloc[0]
-            
-            with st.form("edit_form"):
-                edit_name = st.text_input("Drug Name", value=active_row["drug_name"])
-                edit_category = st.selectbox("Category", CATEGORIES, index=CATEGORIES.index(active_row["category"]))
-                edit_batch = st.text_input("Batch / Lot Number", value=active_row["batch_number"])
+        # TAB 2: Dispense Form
+        with tab2:
+            st.subheader("Record Used / Dispensed Medication")
+            if not df.empty:
+                drug_options = {row['id']: f"[{row['category']}] {row['drug_name']} (Batch: {row['batch_number']} | Avail: {row['quantity']} {row['unit']})" for _, row in df.iterrows()}
+                selected_drug_id = st.selectbox("Select Drug to Dispense", options=list(drug_options.keys()), format_func=lambda x: drug_options[x])
                 
-                eqty_col, eunit_col = st.columns([2, 1])
-                with eqty_col:
-                    edit_qty = st.number_input("Adjust Quantity Available", min_value=0, step=1, value=int(active_row["quantity"]))
-                with eunit_col:
-                    edit_unit = st.text_input("Unit Type", value=active_row["unit"])
-                    
-                edit_min_lvl = st.number_input("Adjust Minimum Safe Stock Level", min_value=1, step=1, value=int(active_row["min_level"]))
-                current_expiry_date = active_row["expiry_date"].date() if isinstance(active_row["expiry_date"], datetime) else datetime.strptime(str(active_row["expiry_date"])[:10], '%Y-%m-%d').date()
-                edit_expiry = st.date_input("Expiration Date", value=current_expiry_date)
+                active_dispense = df[df["id"] == selected_drug_id].iloc[0]
+                qty_used = st.number_input(f"Quantity Used ({active_dispense['unit']})", min_value=1, step=1)
+                purpose = st.text_input("Purpose / Patient Name / Notes")
                 
-                edit_uploaded_file = st.file_uploader("📸 Replace Photo (Leave empty to keep current picture)", type=["jpg", "jpeg", "png"])
-                
-                if st.form_submit_button("Apply and Save Changes"):
-                    if edit_name and edit_batch and edit_unit:
-                        img_bytes = edit_uploaded_file.read() if edit_uploaded_file is not None else None
-                        expiry_str = edit_expiry.strftime('%Y-%m-%d')
-                        update_drug(selected_edit_id, edit_name, edit_category, edit_batch, edit_qty, edit_unit, edit_min_lvl, expiry_str, img_bytes)
-                        st.success("Record updated successfully!")
+                if st.button("Confirm Dispense / Usage"):
+                    success, message = dispense_drug(selected_drug_id, qty_used, purpose)
+                    if success:
+                        st.success(message)
                         st.rerun()
-        else:
-            st.warning("No records found to edit.")
+                    else:
+                        st.error(message)
+            else:
+                st.warning("No stock items found.")
 
-    # TAB 6: Danger Zone
-    with tab6:
-        st.subheader("Wipe System Records")
-        if st.text_input("Type **DELETE** to unlock:") == "DELETE":
-            if st.button("🔴 WIPE ALL DATA PERMANENTLY"):
-                clear_all_data()
-                st.rerun()
+        # TAB 3: QUICK RESTOCK TOOL
+        with tab3:
+            st.subheader("🔄 Quick Restock Existing Product")
+            if not df.empty:
+                restock_options = {row['id']: f"{row['drug_name']} (Current: {row['quantity']} {row['unit']} | Batch: {row['batch_number']})" for _, row in df.iterrows()}
+                selected_restock_id = st.selectbox("Select Product to Restock", options=list(restock_options.keys()), format_func=lambda x: restock_options[x])
+                
+                active_restock = df[df["id"] == selected_restock_id].iloc[0]
+                qty_to_add = st.number_input(f"How many {active_restock['unit']} are you adding?", min_value=1, step=1, value=1)
+                
+                if st.button("Apply Restock Balance"):
+                    success, message = add_stock_quantity(selected_restock_id, qty_to_add)
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+            else:
+                st.warning("No products found in the database to restock. Please add a product first.")
+
+        # TAB 4: Add Stock
+        with tab4:
+            st.subheader("Log New Batch or Medication")
+            with st.form("add_form", clear_on_submit=True):
+                name = st.text_input("Drug Name (e.g., Amoxicillin 500mg)")
+                category = st.selectbox("Select Category", CATEGORIES)
+                batch = st.text_input("Batch / Lot Number")
+                
+                qty_col, unit_col = st.columns([2, 1])
+                with qty_col:
+                    qty = st.number_input("Initial Quantity", min_value=0, step=1)
+                with unit_col:
+                    unit = st.text_input("Unit Type", value="Pills")
+                    
+                min_lvl = st.number_input("Minimum Safe Stock Level", min_value=1, step=1)
+                expiry = st.date_input("Expiration Date")
+                
+                uploaded_file = st.file_uploader("📸 Take Picture / Upload Medication Image", type=["jpg", "jpeg", "png"])
+                
+                submit = st.form_submit_button("Save to Persistent Database")
+                
+                if submit:
+                    if name and batch and unit:
+                        img_bytes = uploaded_file.read() if uploaded_file is not None else None
+                        expiry_str = expiry.strftime('%Y-%m-%d')
+                        insert_drug(name, category, batch, qty, unit, min_lvl, expiry_str, img_bytes)
+                        st.success(f"Successfully recorded {name} into permanent storage!")
+                        st.rerun()
+                    else:
+                        st.error("Please fill out Name, Batch, and Unit fields.")
+
+        # TAB 5: Edit Form
+        with tab5:
+            st.subheader("Modify Existing Medication Record")
+            if not df.empty:
+                edit_options = {row['id']: f"{row['drug_name']} (Batch: {row['batch_number']})" for _, row in df.iterrows()}
+                selected_edit_id = st.selectbox("Select Drug Record to Edit", options=list(edit_options.keys()), format_func=lambda x: edit_options[x])
+                active_row = df[df["id"] == selected_edit_id].iloc[0]
+                
+                with st.form("edit_form"):
+                    edit_name = st.text_input("Drug Name", value=active_row["drug_name"])
+                    edit_category = st.selectbox("Category", CATEGORIES, index=CATEGORIES.index(active_row["category"]))
+                    edit_batch = st.text_input("Batch / Lot Number", value=active_row["batch_number"])
+                    
+                    eqty_col, eunit_col = st.columns([2, 1])
+                    with eqty_col:
+                        edit_qty = st.number_input("Adjust Quantity Available", min_value=0, step=1, value=int(active_row["quantity"]))
+                    with eunit_col:
+                        edit_unit = st.text_input("Unit Type", value=active_row["unit"])
+                        
+                    edit_min_lvl = st.number_input("Adjust Minimum Safe Stock Level", min_value=1, step=1, value=int(active_row["min_level"]))
+                    current_expiry_date = active_row["expiry_date"].date() if isinstance(active_row["expiry_date"], datetime) else datetime.strptime(str(active_row["expiry_date"])[:10], '%Y-%m-%d').date()
+                    edit_expiry = st.date_input("Expiration Date", value=current_expiry_date)
+                    
+                    edit_uploaded_file = st.file_uploader("📸 Replace Photo (Leave empty to keep current picture)", type=["jpg", "jpeg", "png"])
+                    
+                    if st.form_submit_button("Apply and Save Changes"):
+                        if edit_name and edit_batch and edit_unit:
+                            img_bytes = edit_uploaded_file.read() if edit_uploaded_file is not None else None
+                            expiry_str = edit_expiry.strftime('%Y-%m-%d')
+                            update_drug(selected_edit_id, edit_name, edit_category, edit_batch, edit_qty, edit_unit, edit_min_lvl, expiry_str, img_bytes)
+                            st.success("Record updated successfully!")
+                            st.rerun()
+            else:
+                st.warning("No records found to edit.")
+
+        # TAB 6: Danger Zone
+        with tab6:
+            st.subheader("Wipe System Records")
+            if st.text_input("Type **DELETE** to unlock:") == "DELETE":
+                if st.button("🔴 WIPE ALL DATA PERMANENTLY"):
+                    clear_all_data()
+                    st.rerun()
+    else:
+        st.warning("⚠️ Application is waiting for a functional database URI to load components.")
