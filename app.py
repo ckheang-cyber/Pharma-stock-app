@@ -8,11 +8,11 @@ st.set_page_config(page_title="PharmaStock Control", layout="wide")
 
 # --- CLOUD DATABASE CONFIGURATION ---
 # ⚠️ REPLACE WITH YOUR REAL PASSWORD INSIDE THE URI BELOW!
-DB_URI = "postgresql://postgres.hnnnoelyhuqeoxgingoq:[qixvyh-zibzAj-5gahco]@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres"
+DDB_URI = "postgresql://postgres.hnnnoelyhuqeoxgingoq:[qixvyh-zibzAj-5gahco]@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres"
 
 CATEGORIES = ["Antibiotic", "Vitamin", "Supplements", "Vaccine", "Other"]
-USER_ID = "admin"
-USER_PIN = "pharmacy123"
+USER_ID = "ldl"
+USER_PIN = "ldl123"
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
