@@ -7,8 +7,12 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="PharmaStock Control", layout="wide")
 
 # --- CLOUD DATABASE CONFIGURATION ---
-# ⚠️ REPLACE 'YOUR_PASSWORD_HERE' WITH THE NEW PASSWORD YOU SET IN SUPABASE!
-DB_URI = "postgresql://postgres:[pyRPnyOz5quyD7Jv]@db.hnnnoelyhuqeoxgingoq.supabase.co:5432/postgres"
+# ⚠️ Replace 'YOUR_PASSWORD_HERE' with your actual database password
+DB_HOST = "3.106.102.114"  # Direct IP bypasses the DNS translation error
+DB_NAME = "postgres"
+DB_USER = "postgres"
+DB_PORT = "5432"
+DB_PASSWORD = "pyRPnyOz5quyD7Jv"
 CATEGORIES = ["Antibiotic", "Vitamin", "Supplements", "Vaccine", "Other"]
 USER_ID = "ldl"
 USER_PIN = "ldl123"
